@@ -1,13 +1,20 @@
 pub mod cli_game_engine;
 use crate::cli_game_engine::board::board::GameBoard;
+use std::thread;
+use std::time::Duration;
 
 fn main() {
     // Cria tabuleiro do jogo
-    let mut tetris_board = GameBoard::new_20x28();
-    tetris_board.add_shape();
-    tetris_board.display();
-    
-    tetris_board.shape_fall();   
-    
-
+    let mut game_board = GameBoard::new_20x28();
+    game_board.add_shape();
+    game_board.display();
+  
+    loop {
+        if !game_board.shape_fall() { 
+            game_board.add_shape(); 
+        }
+        
+        game_board.display();
+        thread::sleep(Duration::from_millis(50));
+    }
 }
