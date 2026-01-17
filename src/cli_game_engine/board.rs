@@ -36,25 +36,32 @@ pub mod board {
 
         pub fn display(&self) {
             clearscreen::clear().expect("Failed to clear screen");
-
+            
+            println!(" ____________________ ");
+            
             for line in self.board_20x28 {
                 // Transforma cada array em uma string, sem separação entre os caracteres
                 let line_slice: &str =
-                    std::str::from_utf8(&line).expect("Erro: O array de bytes não é UTF-8 válido.");
-                println!("{:?}", line_slice);
+                std::str::from_utf8(&line).expect("Erro: O array de bytes não é UTF-8 válido.");
+                println!("|{}|", line_slice);
             }
+            println!(" ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ ");
         }
 
-        pub fn add_shape(&mut self) {
-            self.piece_start_position_in_board_y_x = [0, 8];
+        pub fn select_new_piece(&mut self) {
             self.active_piece = self.pieces[rand::random_range(0..self.pieces.len())];
+        }
+
+        pub fn add_piece(&mut self) {
+            self.piece_start_position_in_board_y_x = [0, 8];
 
             let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
 
-            for (_piece_line_i, piece_line) in piece_shape.iter().enumerate() {
-                for (_piece_cell_i, &piece_cell) in piece_line.iter().enumerate() {
-                    let board_row = self.piece_start_position_in_board_y_x[0];
-                    let board_col = self.piece_start_position_in_board_y_x[1];
+            for (piece_row_i, piece_line) in piece_shape.iter().enumerate() {
+                for (piece_col_i, &piece_cell) in piece_line.iter().enumerate() {
+
+                    let board_row = self.piece_start_position_in_board_y_x[0] + piece_row_i;
+                    let board_col = self.piece_start_position_in_board_y_x[1] + piece_col_i;
 
                     if piece_cell == 35 && self.board_20x28[board_row][board_col] == 32 {
                         self.board_20x28[board_row][board_col] = 35
@@ -65,21 +72,7 @@ pub mod board {
 
         pub fn shape_fall(&mut self) -> bool {
             let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
-            let mut piece_last_char_position_y_x: [usize; 2] = [0, 0];
-
-            // Itera na matriz de Shape que possui o desenho da peça e identifica a posição do último caractere 35
-            for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
-                let mut is_empty_line: bool = true;
-
-                for (piece_col_index, &piece_cell) in piece_line.iter().enumerate() {
-                    if piece_cell == 35 {
-                        piece_last_char_position_y_x = [piece_row_index, piece_col_index];
-                        is_empty_line = false;
-                    }
-                }
-
-                if is_empty_line { break; }
-            }
+            let piece_last_char_position_y_x: [usize; 2] = self.active_piece.get_last_char_position_y_x();
 
             // Itera sobre a peça posicionada no tabuleiro e identifica se ela pode cair
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
@@ -122,7 +115,7 @@ pub mod board {
                 }
             }
 
-            // Move para baixo
+            // Desenha a peça uma casa abaixo
             self.piece_start_position_in_board_y_x[0] += 1;
 
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
@@ -139,7 +132,6 @@ pub mod board {
                     }
                 }
             }
-            
             return true;
         }
     }
