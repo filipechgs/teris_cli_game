@@ -175,8 +175,101 @@ pub mod board {
             return true;
         }
 
-        pub fn move_piece_sideways(&mut self) {
-            self.piece_position_in_board_y_x[1] += 1;
+        pub fn move_piece_sideways(&mut self, direction: i32) -> bool {
+            let new_x = (self.piece_position_in_board_y_x[1] as i32 + direction) as usize;
+            
+            // Basic boundary check
+            if direction < 0 && self.piece_position_in_board_y_x[1] == 0 {
+                return false; // Can't move left if at left edge
+            }
+            if direction > 0 && self.piece_position_in_board_y_x[1] >= 16 {
+                return false; // Can't move right if piece would go off board (20 - 4 = 16)
+            }
+            
+            // Remove current piece
+            self.remove_piece_from_current_position();
+            
+            // Try new position
+            let old_x = self.piece_position_in_board_y_x[1];
+            self.piece_position_in_board_y_x[1] = new_x;
+            
+            // Check if new position is valid
+            let is_valid = self.is_current_position_valid();
+            
+            if !is_valid {
+                // Revert to old position
+                self.piece_position_in_board_y_x[1] = old_x;
+            }
+            
+            // Redraw piece
+            self.draw_piece_at_current_position();
+            
+            is_valid
+        }
+        
+        fn remove_piece_from_current_position(&mut self) {
+            let piece_shape = self.active_piece.get_current_shape();
+            let last_pos = self.active_piece.get_last_char_position_y_x();
+            
+            for row in 0..=last_pos[0] {
+                for col in 0..4 {
+                    if piece_shape[row][col] == 35 {
+                        let board_row = self.piece_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_position_in_board_y_x[1] + col;
+                        
+                        if board_row < 28 && board_col < 20 {
+                            self.board_20x28[board_row][board_col] = 32;
+                        }
+                    }
+                }
+            }
+        }
+        
+        fn draw_piece_at_current_position(&mut self) {
+            let piece_shape = self.active_piece.get_current_shape();
+            let last_pos = self.active_piece.get_last_char_position_y_x();
+            
+            for row in 0..=last_pos[0] {
+                for col in 0..4 {
+                    if piece_shape[row][col] == 35 {
+                        let board_row = self.piece_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_position_in_board_y_x[1] + col;
+                        
+                        if board_row < 28 && board_col < 20 {
+                            self.board_20x28[board_row][board_col] = 35;
+                        }
+                    }
+                }
+            }
+        }
+        
+        fn is_current_position_valid(&self) -> bool {
+            let piece_shape = self.active_piece.get_current_shape();
+            let last_pos = self.active_piece.get_last_char_position_y_x();
+            
+            for row in 0..=last_pos[0] {
+                for col in 0..4 {
+                    if piece_shape[row][col] == 35 {
+                        let board_row = self.piece_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_position_in_board_y_x[1] + col;
+                        
+                        // Check boundaries
+                        if board_row >= 28 || board_col >= 20 {
+                            return false;
+                        }
+                        
+                        // Check collision with existing pieces
+                        // We need to be careful here - we should check if the cell
+                        // is occupied by something other than our current piece
+                        if self.board_20x28[board_row][board_col] == 35 {
+                            // This is a simplified check - in a full implementation,
+                            // we'd track which pieces are where
+                            return false;
+                        }
+                    }
+                }
+            }
+            true
         }
     }
 }
