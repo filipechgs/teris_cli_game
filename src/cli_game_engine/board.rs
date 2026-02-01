@@ -7,7 +7,7 @@ pub mod board {
         pub board_20x28: [[u8; 20]; 28],
         pub active_piece: Shape,
         pub next_piece: Shape,
-        pub piece_position_in_board_y_x: [usize; 2],
+        pub piece_current_position_in_board_y_x: [usize; 2],
         is_first_piece: bool,
     }
 
@@ -32,7 +32,7 @@ pub mod board {
                 board_20x28: [line; BOARD_HEIGHT],
                 active_piece: Shape::new_i(),
                 next_piece: Shape::new_i(),
-                piece_position_in_board_y_x: [0, 8],
+                piece_current_position_in_board_y_x: [0, 8],
                 is_first_piece: true,
             }
         }
@@ -51,15 +51,17 @@ pub mod board {
             }
             println!(" ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ ");
 
+            println!(" 0123456789ABCDEFGHIJ ");
             println!(" ____________________ ");
 
-            for line in self.board_20x28 {
+            for (l, line) in self.board_20x28.iter().enumerate() {
                 // Transforma cada array em uma string, sem separação entre os caracteres
                 let line_slice: &str =
-                    std::str::from_utf8(&line).expect("Erro: O array de bytes não é UTF-8 válido.");
-                println!("|{}|", line_slice);
+                    std::str::from_utf8(line).expect("Erro: O array de bytes não é UTF-8 válido.");
+                println!("|{}|{}", line_slice, l);
             }
             println!(" ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ ");
+            println!("Press 'Esc' or 'q' to exit.");
         }
 
         fn get_random_piece(&self) -> Shape {
@@ -78,16 +80,16 @@ pub mod board {
         }
 
         pub fn add_piece(&mut self) -> bool {
-            self.piece_position_in_board_y_x = [0, 8];
+            self.piece_current_position_in_board_y_x = [0, 8];
 
-            let piece_last_char_position_y_x: [usize; 2] =
-                self.active_piece.get_last_char_position_y_x();
             let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
+            let piece_last_char_position_y_x: [usize; 2] =
+                self.active_piece.get_current_shape_last_char_y_x();
 
             for (piece_row_i, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_i, &piece_cell) in piece_line.iter().enumerate() {
-                    let board_row = self.piece_position_in_board_y_x[0] + piece_row_i;
-                    let board_col = self.piece_position_in_board_y_x[1] + piece_col_i;
+                    let board_row = self.piece_current_position_in_board_y_x[0] + piece_row_i;
+                    let board_col = self.piece_current_position_in_board_y_x[1] + piece_col_i;
 
                     if piece_cell == 35 && self.board_20x28[board_row][board_col] == 35 {
                         return false;
@@ -106,63 +108,111 @@ pub mod board {
             true
         }
 
-        pub fn piece_fall(&mut self) -> bool {
-            let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
-            let piece_last_char_position_y_x: [usize; 2] =
-                self.active_piece.get_last_char_position_y_x();
+        pub fn piece_fall(&mut self, piece_rotated: bool) -> bool {
+            if piece_rotated {
+                self.remove_piece_from_old_up_position();
 
-            // Itera sobre a peça posicionada no tabuleiro e identifica se ela pode cair
+                if !self.piece_can_fall() {
+                    self.active_piece.undo_rotation();
+                    self.draw_piece_at_aditional_y_position(0);
+
+                    return false;
+                };
+
+                self.draw_piece_at_aditional_y_position(1);
+
+                return true;
+            }
+
+            if self.piece_can_fall() {
+                self.remove_piece_from_current_position();
+                self.draw_piece_at_aditional_y_position(1);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        fn piece_can_fall(&mut self) -> bool {
+            let piece_last_char_position_y_x: [usize; 2] = self.active_piece.get_current_shape_last_char_y_x();
+            let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
+
+            // dbg!(piece_last_char_position_y_x);
+            // dbg!(piece_shape);
+
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_index, &piece_cell) in piece_line.iter().enumerate() {
                     if piece_cell != 35 {
                         continue;
                     }
 
-                    let next_board_row = self.piece_position_in_board_y_x[0] + piece_row_index + 1;
+                    let board_row = self.piece_current_position_in_board_y_x[0] + piece_row_index;
+                    let next_board_row = board_row + 1;
 
-                    if next_board_row >= 28 {
+                    // dbg!(piece_row_index);
+                    // dbg!(board_row);
+
+                    let is_piece_last_line = if piece_row_index == piece_last_char_position_y_x[0] {
+                        true
+                    } else {
+                        false
+                    };
+
+                    // dbg!(is_piece_last_line);
+
+                    if is_piece_last_line && next_board_row >= 28 {
                         return false;
                     }
 
-                    let board_col = self.piece_position_in_board_y_x[1] + piece_col_index;
+                    let board_col = self.piece_current_position_in_board_y_x[1] + piece_col_index;
 
-                    // Paraliza se: essa for a última linha da figura e a próxima linha do tabuleiro tiver um caractere 35 embaixo de algum caractere da figura
-                    if piece_row_index >= piece_last_char_position_y_x[0]
-                        && self.board_20x28[next_board_row][board_col] == 35
-                    {
-                        return false;
+                    if is_piece_last_line {
+                        if self.board_20x28[next_board_row][board_col] == 35 {
+                            return false;
+                        }
                     }
                 }
             }
 
-            // Apaga a peça na posição antiga
+            return true;
+        }
+
+        fn remove_piece_from_old_up_position(&mut self) {
+            let piece_last_char_y_x: [usize; 2] = self.active_piece.get_old_shape_last_char_y_x();
+            let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
+
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_index, &piece_cell) in piece_line.iter().enumerate() {
+
                     // Evitar apagamento de outras peças lateráis
                     if piece_row_index > 3 && piece_cell == 32 {
                         continue;
                     }
 
-                    if piece_row_index > piece_last_char_position_y_x[0] {
+                    if piece_row_index > piece_last_char_y_x[0] {
                         break;
                     }
 
-                    let board_row = self.piece_position_in_board_y_x[0] + piece_row_index;
-                    let board_col = self.piece_position_in_board_y_x[1] + piece_col_index;
+                    let board_row = self.piece_current_position_in_board_y_x[0] + piece_row_index;
+                    let board_col = self.piece_current_position_in_board_y_x[1] + piece_col_index;
 
                     if self.board_20x28[board_row][board_col] == 35 {
                         self.board_20x28[board_row][board_col] = 32
                     }
                 }
             }
+        }
 
-            // Desenha a peça uma casa abaixo
-            self.piece_position_in_board_y_x[0] += 1;
+        fn draw_piece_at_aditional_y_position(&mut self, aditional_y_position: usize) {
+            let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
+            
+            self.piece_current_position_in_board_y_x[0] += aditional_y_position;
 
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_index, &piece_cell) in piece_line.iter().enumerate() {
-                    let board_row = self.piece_position_in_board_y_x[0] + piece_row_index;
-                    let board_col = self.piece_position_in_board_y_x[1] + piece_col_index;
+                    let board_row = self.piece_current_position_in_board_y_x[0] + piece_row_index;
+                    let board_col = self.piece_current_position_in_board_y_x[1] + piece_col_index;
 
                     if board_row < 28 {
                         if self.board_20x28[board_row][board_col] == 32 && piece_cell == 35 {
@@ -172,51 +222,53 @@ pub mod board {
                     }
                 }
             }
+        }
+
+        pub fn rotate_piece(&mut self) -> bool {
+            self.active_piece.rotate();
+
             return true;
         }
 
         pub fn move_piece_sideways(&mut self, direction: i32) -> bool {
-            let new_x = (self.piece_position_in_board_y_x[1] as i32 + direction) as usize;
-            
+            let new_x = (self.piece_current_position_in_board_y_x[1] as i32 + direction) as usize;
+
             // Basic boundary check
-            if direction < 0 && self.piece_position_in_board_y_x[1] == 0 {
+            if direction < 0 && self.piece_current_position_in_board_y_x[1] == 0 {
                 return false; // Can't move left if at left edge
             }
-            if direction > 0 && self.piece_position_in_board_y_x[1] >= 16 {
+            if direction > 0 && self.piece_current_position_in_board_y_x[1] >= 16 {
                 return false; // Can't move right if piece would go off board (20 - 4 = 16)
             }
-            
-            // Remove current piece
+
             self.remove_piece_from_current_position();
-            
+
             // Try new position
-            let old_x = self.piece_position_in_board_y_x[1];
-            self.piece_position_in_board_y_x[1] = new_x;
-            
-            // Check if new position is valid
-            let is_valid = self.is_current_position_valid();
-            
-            if !is_valid {
-                // Revert to old position
-                self.piece_position_in_board_y_x[1] = old_x;
+            let old_x = self.piece_current_position_in_board_y_x[1];
+            self.piece_current_position_in_board_y_x[1] = new_x;
+
+            let is_valid_position = self.is_current_position_valid();
+
+            if !is_valid_position {
+                self.piece_current_position_in_board_y_x[1] = old_x;
             }
-            
+
             // Redraw piece
             self.draw_piece_at_current_position();
-            
-            is_valid
+
+            is_valid_position
         }
-        
+
         fn remove_piece_from_current_position(&mut self) {
             let piece_shape = self.active_piece.get_current_shape();
-            let last_pos = self.active_piece.get_last_char_position_y_x();
-            
+            let last_pos = self.active_piece.get_current_shape_last_char_y_x();
+
             for row in 0..=last_pos[0] {
                 for col in 0..4 {
                     if piece_shape[row][col] == 35 {
-                        let board_row = self.piece_position_in_board_y_x[0] + row;
-                        let board_col = self.piece_position_in_board_y_x[1] + col;
-                        
+                        let board_row = self.piece_current_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_current_position_in_board_y_x[1] + col;
+
                         if board_row < 28 && board_col < 20 {
                             self.board_20x28[board_row][board_col] = 32;
                         }
@@ -224,17 +276,17 @@ pub mod board {
                 }
             }
         }
-        
+
         fn draw_piece_at_current_position(&mut self) {
             let piece_shape = self.active_piece.get_current_shape();
-            let last_pos = self.active_piece.get_last_char_position_y_x();
-            
+            let last_pos = self.active_piece.get_current_shape_last_char_y_x();
+
             for row in 0..=last_pos[0] {
                 for col in 0..4 {
                     if piece_shape[row][col] == 35 {
-                        let board_row = self.piece_position_in_board_y_x[0] + row;
-                        let board_col = self.piece_position_in_board_y_x[1] + col;
-                        
+                        let board_row = self.piece_current_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_current_position_in_board_y_x[1] + col;
+
                         if board_row < 28 && board_col < 20 {
                             self.board_20x28[board_row][board_col] = 35;
                         }
@@ -242,22 +294,22 @@ pub mod board {
                 }
             }
         }
-        
+
         fn is_current_position_valid(&self) -> bool {
+            // BUG - verificar se a próxima posição, e não a atual, é válida
             let piece_shape = self.active_piece.get_current_shape();
-            let last_pos = self.active_piece.get_last_char_position_y_x();
-            
+            let last_pos = self.active_piece.get_current_shape_last_char_y_x();
+
             for row in 0..=last_pos[0] {
                 for col in 0..4 {
                     if piece_shape[row][col] == 35 {
-                        let board_row = self.piece_position_in_board_y_x[0] + row;
-                        let board_col = self.piece_position_in_board_y_x[1] + col;
-                        
-                        // Check boundaries
+                        let board_row = self.piece_current_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_current_position_in_board_y_x[1] + col;
+
                         if board_row >= 28 || board_col >= 20 {
                             return false;
                         }
-                        
+
                         // Check collision with existing pieces
                         // We need to be careful here - we should check if the cell
                         // is occupied by something other than our current piece
@@ -270,6 +322,42 @@ pub mod board {
                 }
             }
             true
+        }
+
+        pub fn clear_board_line(&mut self) {
+            let board = self.board_20x28;
+
+            for (r, row ) in board.iter().enumerate().rev() {
+                let mut filled_line: bool = false;
+                let mut empty_line: bool = true;
+                let mut char_counter: usize = 0;
+
+                for (_c, char) in row.iter().enumerate() {
+                    if *char == 35 {
+                        empty_line = false;
+                        char_counter += 1;
+                    }
+
+                    if char_counter == 20 {
+                        filled_line = true;
+                    }
+                }
+
+                for (c, _char) in row.iter().enumerate() {
+                    if filled_line {
+                        self.board_20x28[r][c] = 32;
+                    }
+                }
+
+                // Registrar o estado do board acima da linha apagada
+                // Apagar o estado do board
+                // Redesenhar de baixo para cima a partir da linha apagada
+
+                if empty_line {
+                    break;
+                }
+            }
+          
         }
     }
 }
