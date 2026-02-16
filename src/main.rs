@@ -26,7 +26,7 @@ fn main() -> io::Result<()> {
         
         let mut piece_rotated: bool = false;
 
-        thread::sleep(Duration::from_millis(185));
+        thread::sleep(Duration::from_millis(165));
 
         // Utiliza o while para drenar os eventos acumulados no buffer
         while event::poll(Duration::from_millis(0))? {
