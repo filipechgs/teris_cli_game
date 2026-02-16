@@ -1,4 +1,6 @@
 pub mod board {
+    use rand::fill;
+
     use crate::cli_game_engine::shapes::shapes::Shape;
     use crate::cli_game_engine::types::types::Matrix4x4;
 
@@ -330,8 +332,9 @@ pub mod board {
 
         pub fn clear_board_line(&mut self) {
             let board = self.board_20x28;
+            let mut line_replaced = false;
 
-            for (r, row ) in board.iter().enumerate().rev() {
+            for (y, row ) in board.iter().enumerate().rev() {
                 let mut filled_line: bool = false;
                 let mut empty_line: bool = true;
                 let mut char_counter: usize = 0;
@@ -347,21 +350,36 @@ pub mod board {
                     }
                 }
 
-                for (c, _char) in row.iter().enumerate() {
-                    if filled_line {
-                        self.board_20x28[r][c] = 32;
+                if empty_line && line_replaced {
+                    for (c, _char) in row.iter().enumerate() {
+                        self.board_20x28[y][c] = 32;
+                        // Copia a linha logo acima para a posição atual
+                        self.board_20x28[y][c] = self.board_20x28[y-1][c];
+                        // Transforma linha logo acima em em linha em branco;
+                        self.board_20x28[y-1][c] = 32; 
                     }
                 }
 
-                // Registrar o estado do board acima da linha apagada
-                // Apagar o estado do board
-                // Redesenhar de baixo para cima a partir da linha apagada
+                // Remove caracteres '#', 35, da linha preenchida
+                for (c, _char) in row.iter().enumerate() {
+                    if filled_line {
+                        self.board_20x28[y][c] = 32;
+                        // Copia a linha logo acima para a posição atual
+                        self.board_20x28[y][c] = self.board_20x28[y-1][c];
+                        // Transforma linha logo acima em em linha em branco;
+                        self.board_20x28[y-1][c] = 32; 
+                        // Sinaliza que linha logo acima foi apagada;
+                        line_replaced = true;
+                    }
+                }
 
                 if empty_line {
                     break;
                 }
             }
-          
+            
+
         }
+
     }
 }
