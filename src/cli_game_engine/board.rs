@@ -1,6 +1,4 @@
 pub mod board {
-    use rand::fill;
-
     use crate::cli_game_engine::shapes::shapes::Shape;
     use crate::cli_game_engine::types::types::Matrix4x4;
 
