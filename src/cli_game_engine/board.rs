@@ -7,7 +7,7 @@ pub mod board {
         pub board_20x28: [[u8; 20]; 28],
         pub active_piece: Shape,
         pub next_piece: Shape,
-        pub piece_current_position_in_board_y_x: [usize; 2],
+        pub piece_current_start_position_in_board_y_x: [usize; 2],
         is_first_piece: bool,
     }
 
@@ -32,7 +32,7 @@ pub mod board {
                 board_20x28: [line; BOARD_HEIGHT],
                 active_piece: Shape::new_i(),
                 next_piece: Shape::new_i(),
-                piece_current_position_in_board_y_x: [0, 8],
+                piece_current_start_position_in_board_y_x: [0, 8],
                 is_first_piece: true,
             }
         }
@@ -80,7 +80,7 @@ pub mod board {
         }
 
         pub fn add_piece(&mut self) -> bool {
-            self.piece_current_position_in_board_y_x = [0, 8];
+            self.piece_current_start_position_in_board_y_x = [0, 8];
 
             let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
             let piece_last_char_position_y_x: [usize; 2] =
@@ -88,8 +88,8 @@ pub mod board {
 
             for (piece_row_i, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_i, &piece_cell) in piece_line.iter().enumerate() {
-                    let board_row = self.piece_current_position_in_board_y_x[0] + piece_row_i;
-                    let board_col = self.piece_current_position_in_board_y_x[1] + piece_col_i;
+                    let board_row = self.piece_current_start_position_in_board_y_x[0] + piece_row_i;
+                    let board_col = self.piece_current_start_position_in_board_y_x[1] + piece_col_i;
 
                     if piece_cell == 35 && self.board_20x28[board_row][board_col] == 35 {
                         return false;
@@ -147,7 +147,7 @@ pub mod board {
                         continue;
                     }
 
-                    let board_row = self.piece_current_position_in_board_y_x[0] + piece_row_index;
+                    let board_row = self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
                     let next_board_row = board_row + 1;
 
                     // dbg!(piece_row_index);
@@ -165,7 +165,7 @@ pub mod board {
                         return false;
                     }
 
-                    let board_col = self.piece_current_position_in_board_y_x[1] + piece_col_index;
+                    let board_col = self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
 
                     if is_piece_last_line {
                         if self.board_20x28[next_board_row][board_col] == 35 {
@@ -194,11 +194,13 @@ pub mod board {
                         break;
                     }
 
-                    let board_row = self.piece_current_position_in_board_y_x[0] + piece_row_index;
-                    let board_col = self.piece_current_position_in_board_y_x[1] + piece_col_index;
+                    let board_row = self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
+                    let board_col = self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
 
-                    if self.board_20x28[board_row][board_col] == 35 {
-                        self.board_20x28[board_row][board_col] = 32
+                    if board_col < 20 {
+                        if self.board_20x28[board_row][board_col] == 35 {
+                            self.board_20x28[board_row][board_col] = 32
+                        }
                     }
                 }
             }
@@ -207,14 +209,14 @@ pub mod board {
         fn draw_piece_at_aditional_y_position(&mut self, aditional_y_position: usize) {
             let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
             
-            self.piece_current_position_in_board_y_x[0] += aditional_y_position;
+            self.piece_current_start_position_in_board_y_x[0] += aditional_y_position;
 
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_index, &piece_cell) in piece_line.iter().enumerate() {
-                    let board_row = self.piece_current_position_in_board_y_x[0] + piece_row_index;
-                    let board_col = self.piece_current_position_in_board_y_x[1] + piece_col_index;
+                    let board_row = self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
+                    let board_col = self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
 
-                    if board_row < 28 {
+                    if board_row < 28 && board_col < 20 {
                         if self.board_20x28[board_row][board_col] == 32 && piece_cell == 35 {
                             // Esceve a célula da figura em queda
                             self.board_20x28[board_row][board_col] = 35
@@ -231,26 +233,28 @@ pub mod board {
         }
 
         pub fn move_piece_sideways(&mut self, direction: i32) -> bool {
-            let new_x = (self.piece_current_position_in_board_y_x[1] as i32 + direction) as usize;
+            let new_x = (self.piece_current_start_position_in_board_y_x[1] as i32 + direction) as usize;
 
             // Basic boundary check
-            if direction < 0 && self.piece_current_position_in_board_y_x[1] == 0 {
+            if direction < 0 && self.piece_current_start_position_in_board_y_x[1] <= 0 {
                 return false; // Can't move left if at left edge
             }
-            if direction > 0 && self.piece_current_position_in_board_y_x[1] >= 16 {
+
+            let piece_last_char_y_x = self.active_piece.get_current_shape_last_char_y_x();
+            if direction > 0 && self.piece_current_start_position_in_board_y_x[1] >= (20 - piece_last_char_y_x[1]) {
                 return false; // Can't move right if piece would go off board (20 - 4 = 16)
             }
 
             self.remove_piece_from_current_position();
 
             // Try new position
-            let old_x = self.piece_current_position_in_board_y_x[1];
-            self.piece_current_position_in_board_y_x[1] = new_x;
+            let old_x = self.piece_current_start_position_in_board_y_x[1];
+            self.piece_current_start_position_in_board_y_x[1] = new_x;
 
             let is_valid_position = self.is_current_position_valid();
 
             if !is_valid_position {
-                self.piece_current_position_in_board_y_x[1] = old_x;
+                self.piece_current_start_position_in_board_y_x[1] = old_x;
             }
 
             // Redraw piece
@@ -266,8 +270,8 @@ pub mod board {
             for row in 0..=last_pos[0] {
                 for col in 0..4 {
                     if piece_shape[row][col] == 35 {
-                        let board_row = self.piece_current_position_in_board_y_x[0] + row;
-                        let board_col = self.piece_current_position_in_board_y_x[1] + col;
+                        let board_row = self.piece_current_start_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_current_start_position_in_board_y_x[1] + col;
 
                         if board_row < 28 && board_col < 20 {
                             self.board_20x28[board_row][board_col] = 32;
@@ -284,8 +288,8 @@ pub mod board {
             for row in 0..=last_pos[0] {
                 for col in 0..4 {
                     if piece_shape[row][col] == 35 {
-                        let board_row = self.piece_current_position_in_board_y_x[0] + row;
-                        let board_col = self.piece_current_position_in_board_y_x[1] + col;
+                        let board_row = self.piece_current_start_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_current_start_position_in_board_y_x[1] + col;
 
                         if board_row < 28 && board_col < 20 {
                             self.board_20x28[board_row][board_col] = 35;
@@ -303,8 +307,8 @@ pub mod board {
             for row in 0..=last_pos[0] {
                 for col in 0..4 {
                     if piece_shape[row][col] == 35 {
-                        let board_row = self.piece_current_position_in_board_y_x[0] + row;
-                        let board_col = self.piece_current_position_in_board_y_x[1] + col;
+                        let board_row = self.piece_current_start_position_in_board_y_x[0] + row;
+                        let board_col = self.piece_current_start_position_in_board_y_x[1] + col;
 
                         if board_row >= 28 || board_col >= 20 {
                             return false;
