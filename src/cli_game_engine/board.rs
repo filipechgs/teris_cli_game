@@ -8,6 +8,7 @@ pub mod board {
         pub active_piece: Shape,
         pub next_piece: Shape,
         pub piece_current_start_position_in_board_y_x: [usize; 2],
+        pub score: usize,
         is_first_piece: bool,
     }
 
@@ -33,6 +34,7 @@ pub mod board {
                 active_piece: Shape::new_i(),
                 next_piece: Shape::new_i(),
                 piece_current_start_position_in_board_y_x: [0, 8],
+                score: 0,
                 is_first_piece: true,
             }
         }
@@ -41,7 +43,8 @@ pub mod board {
             clearscreen::clear().expect("Failed to clear screen");
 
             let next_piece = self.next_piece.get_current_shape();
-
+            
+            println!("Score: {}", self.score);
             println!(" ____________________ ");
 
             for (_row_i, row) in next_piece.iter().enumerate() {
@@ -300,7 +303,6 @@ pub mod board {
         }
 
         fn is_current_position_valid(&self) -> bool {
-            // BUG - verificar se a próxima posição, e não a atual, é válida
             let piece_shape = self.active_piece.get_current_shape();
             let last_pos = self.active_piece.get_current_shape_last_char_y_x();
 
@@ -314,9 +316,6 @@ pub mod board {
                             return false;
                         }
 
-                        // Check collision with existing pieces
-                        // We need to be careful here - we should check if the cell
-                        // is occupied by something other than our current piece
                         if self.board_20x28[board_row][board_col] == 35 {
                             // This is a simplified check - in a full implementation,
                             // we'd track which pieces are where
@@ -361,6 +360,7 @@ pub mod board {
                 // Remove caracteres '#', 35, da linha preenchida
                 for (c, _char) in row.iter().enumerate() {
                     if filled_line {
+                        self.score += 1;
                         self.board_20x28[y][c] = 32;
                         // Copia a linha logo acima para a posição atual
                         self.board_20x28[y][c] = self.board_20x28[y-1][c];
