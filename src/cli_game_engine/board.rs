@@ -1,4 +1,7 @@
 pub mod board {
+    use std::collections::btree_map::Range;
+    use std::ops::RangeFrom;
+
     use crate::cli_game_engine::shapes::shapes::Shape;
     use crate::cli_game_engine::types::types::Matrix4x4;
 
@@ -43,7 +46,7 @@ pub mod board {
             clearscreen::clear().expect("Failed to clear screen");
 
             let next_piece = self.next_piece.get_current_shape();
-            
+
             println!("Score: {}", self.score);
             println!(" ____________________ ");
 
@@ -138,11 +141,9 @@ pub mod board {
         }
 
         fn piece_can_fall(&mut self) -> bool {
-            let piece_last_char_position_y_x: [usize; 2] = self.active_piece.get_current_shape_last_char_y_x();
+            let piece_last_char_position_y_x: [usize; 2] =
+                self.active_piece.get_current_shape_last_char_y_x();
             let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
-
-            // dbg!(piece_last_char_position_y_x);
-            // dbg!(piece_shape);
 
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_index, &piece_cell) in piece_line.iter().enumerate() {
@@ -150,11 +151,9 @@ pub mod board {
                         continue;
                     }
 
-                    let board_row = self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
+                    let board_row =
+                        self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
                     let next_board_row = board_row + 1;
-
-                    // dbg!(piece_row_index);
-                    // dbg!(board_row);
 
                     let is_piece_last_line = if piece_row_index == piece_last_char_position_y_x[0] {
                         true
@@ -162,18 +161,22 @@ pub mod board {
                         false
                     };
 
-                    // dbg!(is_piece_last_line);
-
                     if is_piece_last_line && next_board_row >= 28 {
                         return false;
                     }
 
-                    let board_col = self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
+                    let board_col =
+                        self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
 
                     if is_piece_last_line {
                         if self.board_20x28[next_board_row][board_col] == 35 {
                             return false;
                         }
+ 
+                    } else if piece_shape[piece_row_index + 1][piece_col_index] == 32
+                        && self.board_20x28[next_board_row][board_col] == 35 
+                    {
+                        return false;
                     }
                 }
             }
@@ -187,7 +190,6 @@ pub mod board {
 
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_index, &piece_cell) in piece_line.iter().enumerate() {
-
                     // Evitar apagamento de outras peças lateráis
                     if piece_row_index > 3 && piece_cell == 32 {
                         continue;
@@ -197,8 +199,10 @@ pub mod board {
                         break;
                     }
 
-                    let board_row = self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
-                    let board_col = self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
+                    let board_row =
+                        self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
+                    let board_col =
+                        self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
 
                     if board_col < 20 {
                         if self.board_20x28[board_row][board_col] == 35 {
@@ -211,13 +215,15 @@ pub mod board {
 
         fn draw_piece_at_aditional_y_position(&mut self, aditional_y_position: usize) {
             let piece_shape: Matrix4x4 = self.active_piece.get_current_shape();
-            
+
             self.piece_current_start_position_in_board_y_x[0] += aditional_y_position;
 
             for (piece_row_index, piece_line) in piece_shape.iter().enumerate() {
                 for (piece_col_index, &piece_cell) in piece_line.iter().enumerate() {
-                    let board_row = self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
-                    let board_col = self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
+                    let board_row =
+                        self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
+                    let board_col =
+                        self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
 
                     if board_row < 28 && board_col < 20 {
                         if self.board_20x28[board_row][board_col] == 32 && piece_cell == 35 {
@@ -236,7 +242,8 @@ pub mod board {
         }
 
         pub fn move_piece_sideways(&mut self, direction: i32) -> bool {
-            let new_x = (self.piece_current_start_position_in_board_y_x[1] as i32 + direction) as usize;
+            let new_x =
+                (self.piece_current_start_position_in_board_y_x[1] as i32 + direction) as usize;
 
             // Basic boundary check
             if direction < 0 && self.piece_current_start_position_in_board_y_x[1] <= 0 {
@@ -244,7 +251,10 @@ pub mod board {
             }
 
             let piece_last_char_y_x = self.active_piece.get_current_shape_last_char_y_x();
-            if direction > 0 && self.piece_current_start_position_in_board_y_x[1] >= (20 - piece_last_char_y_x[1]) {
+            if direction > 0
+                && self.piece_current_start_position_in_board_y_x[1]
+                    >= (20 - piece_last_char_y_x[1])
+            {
                 return false; // Can't move right if piece would go off board (20 - 4 = 16)
             }
 
@@ -328,56 +338,41 @@ pub mod board {
         }
 
         pub fn clear_board_line(&mut self) {
-            let board = self.board_20x28;
-            let mut line_replaced = false;
+            let rows = self.board_20x28.len();
+            let cols = self.board_20x28[0].len(); // número de colunas (deve ser 20)
+            let mut write_index = rows - 1; // índice onde escrever a próxima linha não preenchida
+            let mut lines_removed = 0;
 
-            for (y, row ) in board.iter().enumerate().rev() {
-                let mut filled_line: bool = false;
-                let mut empty_line: bool = true;
-                let mut char_counter: usize = 0;
+            // Percorre de baixo para cima
+            for y in (0..rows).rev() {
+                // Verifica se a linha está completamente preenchida com '#'
+                let filled = self.board_20x28[y].iter().all(|&c| c == 35);
 
-                for (_c, char) in row.iter().enumerate() {
-                    if *char == 35 {
-                        empty_line = false;
-                        char_counter += 1;
+                if !filled {
+                    // Linha não preenchida: copia para a posição write_index
+                    if write_index != y {
+                        // evita cópia desnecessária se já estiver no lugar
+                        self.board_20x28[write_index] = self.board_20x28[y];
                     }
-
-                    if char_counter == 20 {
-                        filled_line = true;
+                    // Prepara para a próxima linha acima (se houver)
+                    if write_index > 0 {
+                        write_index -= 1;
                     }
-                }
-
-                if empty_line && line_replaced {
-                    for (c, _char) in row.iter().enumerate() {
-                        self.board_20x28[y][c] = 32;
-                        // Copia a linha logo acima para a posição atual
-                        self.board_20x28[y][c] = self.board_20x28[y-1][c];
-                        // Transforma linha logo acima em em linha em branco;
-                        self.board_20x28[y-1][c] = 32; 
-                    }
-                }
-
-                // Remove caracteres '#', 35, da linha preenchida
-                for (c, _char) in row.iter().enumerate() {
-                    if filled_line {
-                        self.score += 1;
-                        self.board_20x28[y][c] = 32;
-                        // Copia a linha logo acima para a posição atual
-                        self.board_20x28[y][c] = self.board_20x28[y-1][c];
-                        // Transforma linha logo acima em em linha em branco;
-                        self.board_20x28[y-1][c] = 32; 
-                        // Sinaliza que linha logo acima foi apagada;
-                        line_replaced = true;
-                    }
-                }
-
-                if empty_line {
-                    break;
+                } else {
+                    // Linha preenchida: será descartada
+                    lines_removed += 1;
                 }
             }
-            
 
+            // Atualiza a pontuação (uma vez por linha removida)
+            self.score += lines_removed;
+
+            // Limpa as linhas do topo (índices 0 a write_index)
+            for y in 0..=write_index {
+                for c in 0..cols {
+                    self.board_20x28[y][c] = 32; // espaço
+                }
+            }
         }
-
     }
 }
