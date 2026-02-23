@@ -310,7 +310,6 @@ pub mod shapes {
         }
 
         pub fn undo_rotation(&mut self) {
-            
             self.shape_current_position = self.shape_old_position;
         }
     }

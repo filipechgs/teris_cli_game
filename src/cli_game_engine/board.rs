@@ -1,7 +1,4 @@
 pub mod board {
-    use std::collections::btree_map::Range;
-    use std::ops::RangeFrom;
-
     use crate::cli_game_engine::shapes::shapes::Shape;
     use crate::cli_game_engine::types::types::Matrix4x4;
 
@@ -57,14 +54,15 @@ pub mod board {
             }
             println!(" ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ ");
 
-            println!(" 0123456789ABCDEFGHIJ ");
+            // println!(" 0123456789ABCDEFGHIJ ");
             println!(" ____________________ ");
 
-            for (l, line) in self.board_20x28.iter().enumerate() {
+            for (_l, line) in self.board_20x28.iter().enumerate() {
                 // Transforma cada array em uma string, sem separação entre os caracteres
                 let line_slice: &str =
                     std::str::from_utf8(line).expect("Erro: O array de bytes não é UTF-8 válido.");
-                println!("|{}|{}", line_slice, l);
+                println!("|{}|", line_slice);
+                // println!("|{}|{}", line_slice, l); // Para debug
             }
             println!(" ¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨ ");
             println!("Press 'Esc' or 'q' to exit.");
@@ -122,7 +120,7 @@ pub mod board {
                     self.active_piece.undo_rotation();
                     self.draw_piece_at_aditional_y_position(0);
 
-                    return false;
+                    return true;
                 };
 
                 self.draw_piece_at_aditional_y_position(1);
@@ -151,9 +149,9 @@ pub mod board {
                         continue;
                     }
 
-                    let board_row =
-                        self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
+                    let board_row = self.piece_current_start_position_in_board_y_x[0] + piece_row_index;
                     let next_board_row = board_row + 1;
+                    let board_col = self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
 
                     let is_piece_last_line = if piece_row_index == piece_last_char_position_y_x[0] {
                         true
@@ -165,19 +163,22 @@ pub mod board {
                         return false;
                     }
 
-                    let board_col =
-                        self.piece_current_start_position_in_board_y_x[1] + piece_col_index;
+                    if board_col >= 20 {
+                        return false;
+                    }
 
                     if is_piece_last_line {
                         if self.board_20x28[next_board_row][board_col] == 35 {
                             return false;
                         }
  
-                    } else if piece_shape[piece_row_index + 1][piece_col_index] == 32
-                        && self.board_20x28[next_board_row][board_col] == 35 
-                    {
-                        return false;
-                    }
+                    } else if next_board_row < 28 {
+                        if piece_shape[piece_row_index + 1][piece_col_index] == 32
+                            && self.board_20x28[next_board_row][board_col] == 35 
+                        {
+                            return false;
+                        }
+                    } 
                 }
             }
 
