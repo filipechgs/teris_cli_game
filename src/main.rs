@@ -20,10 +20,10 @@ fn main() -> io::Result<()> {
     game_board.add_piece();
 
     let mut pressed_keys: HashSet<KeyCode> = HashSet::new();
-    
+
     'game_loop: loop {
         game_board.display();
-        
+
         let mut piece_rotated: bool = false;
 
         thread::sleep(Duration::from_millis(165));
@@ -31,7 +31,6 @@ fn main() -> io::Result<()> {
         // Utiliza o while para drenar os eventos acumulados no buffer
         while event::poll(Duration::from_millis(0))? {
             if let Event::Key(KeyEvent { code, kind, .. }) = event::read()? {
-                
                 // Processa a ação apenas quando a tecla é pressionada pela primeira vez
                 if kind == event::KeyEventKind::Press && pressed_keys.insert(code) {
                     match code {
@@ -55,23 +54,52 @@ fn main() -> io::Result<()> {
                 }
             }
         }
-        
-        dbg!(piece_rotated);
+
+        // dbg!(piece_rotated);
 
         let piece_can_fall = game_board.piece_fall(piece_rotated);
-        
-        dbg!(piece_can_fall);
+
+        // dbg!(piece_can_fall);
 
         if !piece_can_fall {
             game_board.clear_board_line();
             game_board.select_new_piece();
 
             if !game_board.add_piece() {
-                println!("GAME OVER!");
-                break 'game_loop;
+                println!("\nGAME OVER!");
+
+                // Desabilita o modo raw para usar entrada com Enter
+                terminal::disable_raw_mode()?;
+
+                loop {
+                    println!("\nPress 'r' and then Enter to restart, or 'q' and Enter to quit.");
+                    
+                    let mut input = String::new();
+                    
+                    io::stdin().read_line(&mut input)?;
+                    let input = input.trim();
+
+                    match input {
+                        "r" => {
+                            // Reinicia o jogo
+                            game_board = GameBoard::new_20x28();
+                            game_board.select_new_piece();
+                            game_board.add_piece();
+                            // Reabilita o modo raw antes de voltar ao jogo
+                            terminal::enable_raw_mode()?;
+                            break; // volta ao loop principal
+                        }
+                        "q" => {
+                            break 'game_loop; // sai do jogo (raw mode já desabilitado)
+                        }
+                        _ => {
+                            println!("Invalid option. Please enter 'r' or 'q'.");
+                        }
+                    }
+                }
+                
             }
         }
-
     }
 
     terminal::disable_raw_mode()?;
