@@ -243,25 +243,25 @@ pub mod board {
         }
 
         pub fn move_piece_sideways(&mut self, direction: i32) -> bool {
-            let new_x =
-                (self.piece_current_start_position_in_board_y_x[1] as i32 + direction) as usize;
-
+            
             // Basic boundary check
             if direction < 0 && self.piece_current_start_position_in_board_y_x[1] <= 0 {
                 return false; // Can't move left if at left edge
             }
-
+            
             let piece_last_char_y_x = self.active_piece.get_current_shape_last_char_y_x();
+            
             if direction > 0
-                && self.piece_current_start_position_in_board_y_x[1]
-                    >= (20 - piece_last_char_y_x[1])
+            && self.piece_current_start_position_in_board_y_x[1]
+            >= (20 - piece_last_char_y_x[1])
             {
-                return false; // Can't move right if piece would go off board (20 - 4 = 16)
+                return false;
             }
-
+            
             self.remove_piece_from_current_position();
-
+            
             // Try new position
+            let new_x = (self.piece_current_start_position_in_board_y_x[1] as i32 + direction) as usize;
             let old_x = self.piece_current_start_position_in_board_y_x[1];
             self.piece_current_start_position_in_board_y_x[1] = new_x;
 
@@ -315,9 +315,9 @@ pub mod board {
 
         fn is_current_position_valid(&self) -> bool {
             let piece_shape = self.active_piece.get_current_shape();
-            let last_pos = self.active_piece.get_current_shape_last_char_y_x();
+            let piece_last_char_y_x = self.active_piece.get_current_shape_last_char_y_x();
 
-            for row in 0..=last_pos[0] {
+            for row in 0..=piece_last_char_y_x[0] {
                 for col in 0..4 {
                     if piece_shape[row][col] == 35 {
                         let board_row = self.piece_current_start_position_in_board_y_x[0] + row;
@@ -327,9 +327,8 @@ pub mod board {
                             return false;
                         }
 
+                        // Verifica se alguma char # da peça sobrescreve algum char # ques já estava no tabuleiro 
                         if self.board_20x28[board_row][board_col] == 35 {
-                            // This is a simplified check - in a full implementation,
-                            // we'd track which pieces are where
                             return false;
                         }
                     }
